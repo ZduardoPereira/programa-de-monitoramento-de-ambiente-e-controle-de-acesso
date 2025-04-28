@@ -13,7 +13,8 @@ Este projeto consiste em uma **API de monitoramento de ambiente** (DHT11 para te
 
 ### Vídeo de Apresentação  
 <div align="center">
-  <video src="./demo/monitoramento.mp" controls width="600" />
+  <video src="./demo/bandicam2025-04-1611-49-01-972-ezgif.com-video-to-gif-converter.gif" controls width="600" />
+  <video src="./demo//bandicam2025-04-1611-49-50-502-ezgif.com-video-to-gif-converter.gif" controls width="600" />
 </div>
 
 ### Screenshots  

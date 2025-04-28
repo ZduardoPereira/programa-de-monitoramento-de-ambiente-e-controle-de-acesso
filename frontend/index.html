@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Monitoramento de Ambiente - Teste</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script>
+    // Inicializa o EmailJS com sua Public Key
+    emailjs.init("0FWTTiL8PsWbZUYyz");
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      text-align: center;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    #graficoContainer, #graficoGasContainer {
+      width: 600px;
+      height: 400px;
+      margin: 20px auto;
+    }
+    #botoesContainer {
+      margin-top: 20px;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 16px;
+    }
+    #rfidTable {
+      width: 80%;
+      margin: 20px auto;
+      border-collapse: collapse;
+    }
+    #rfidTable th, #rfidTable td {
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+    #rfidTable th {
+      background-color: #f0f0f0;
+    }
+    /* Modal de Cadastro */
+    #modalCadastro {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    #modalCadastro div {
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Monitoramento de Ambiente</h1>
+  <h2>Funcionários Presentes: <span id="contadorFuncionarios">0</span></h2>
+
+  <div id="graficoContainer">
+    <canvas id="grafico"></canvas>
+  </div>
+
+  <div id="graficoGasContainer">
+    <canvas id="graficoGas"></canvas>
+  </div>
+
+  <div id="botoesContainer">
+    <button onclick="testarEmail()">Testar Envio de Email</button>
+    <button onclick="enviarSimulacao('simularUmidade')">Simular Alta Umidade</button>
+    <button onclick="enviarSimulacao('simularTempAlta')">Simular Temp. Alta</button>
+    <button onclick="enviarSimulacao('simularTempBaixa')">Simular Temp. Baixa</button>
+    <button onclick="enviarSimulacao('simularGasAlto')">Simular Alto Gás</button>
+  </div>
+
+  <h2>Histórico de Acessos RFID</h2>
+  <table id="rfidTable">
+    <thead>
+      <tr>
+        <th>Data/Hora</th>
+        <th>UID</th>
+        <th>Tipo</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Modal de Cadastro para novo cartão -->
+  <div id="modalCadastro">
+    <div>
+      <h3>Cadastrar Cartão</h3>
+      <input type="text" id="nome" placeholder="Nome" /><br />
+      <input type="email" id="email" placeholder="Email" /><br />
+      <button onclick="cadastrarCartao()">Cadastrar</button>
+    </div>
+  </div>
+
+  <script>
+    // Configuração dos gráficos com Chart.js
+    const grafico = new Chart(document.getElementById('grafico').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Temperatura (°C)', data: [], borderColor: 'red', fill: false },
+          { label: 'Umidade (%)', data: [], borderColor: 'blue', fill: false }
+        ]
+      },
+      options: { scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+    });
+
+    const graficoGas = new Chart(document.getElementById('graficoGas').getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Nível de Gás (MQ-9)', data: [], borderColor: 'green', fill: false }] },
+      options: { scales: { yAxes: [{ ticks: { beginAtZero: true } }] } }
+    });
+
+    let lastGasAlertTime = 0, lastTempAlertTime = 0, lastHumidityAlertTime = 0;
+    let contadorFuncionarios = 0;
+    const estadoCartoes = {};
+    const cartoesCadastrados = {};
+
+    // Conexão WebSocket (ajuste o IP conforme sua rede)
+    const ws = new WebSocket("ws://192.168.194.143:81/");
+    ws.onopen = () => console.log("WebSocket conectado!");
+
+    ws.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      const now = new Date().toLocaleTimeString();
+      const currentTime = Date.now();
+
+      // Atualiza gráficos de sensores
+      if (data.temperature !== undefined && data.humidity !== undefined) {
+        grafico.data.labels.push(now);
+        grafico.data.datasets[0].data.push(data.temperature);
+        grafico.data.datasets[1].data.push(data.humidity);
+        if (grafico.data.labels.length > 20) {
+          grafico.data.labels.shift();
+          grafico.data.datasets[0].data.shift();
+          grafico.data.datasets[1].data.shift();
+        }
+        grafico.update();
+
+        if (data.temperature > 30 && currentTime - lastTempAlertTime > 60000) {
+          Swal.fire('Alerta de Calor', 'Temperatura acima de 30°C!', 'warning');
+          enviarAlertaEmail('Temperatura Alta', 'Temperatura acima de 30°C detectada.', new Date().toLocaleString());
+          lastTempAlertTime = currentTime;
+        }
+        if (data.temperature < 16 && currentTime - lastTempAlertTime > 60000) {
+          Swal.fire('Alerta de Frio', 'Temperatura abaixo de 16°C!', 'info');
+          enviarAlertaEmail('Temperatura Baixa', 'Temperatura abaixo de 16°C detectada.', new Date().toLocaleString());
+          lastTempAlertTime = currentTime;
+        }
+
+        if (data.humidity > 90 && currentTime - lastHumidityAlertTime > 60000) {
+          Swal.fire('Alerta de Umidade', 'Umidade acima de 90%!', 'info');
+          enviarAlertaEmail('Alta Umidade', 'Umidade acima de 90% detectada.', new Date().toLocaleString());
+          lastHumidityAlertTime = currentTime;
+        }
+      }
+
+      if (data.gas !== undefined) {
+        graficoGas.data.labels.push(now);
+        graficoGas.data.datasets[0].data.push(data.gas);
+        if (graficoGas.data.labels.length > 20) {
+          graficoGas.data.labels.shift();
+          graficoGas.data.datasets[0].data.shift();
+        }
+        graficoGas.update();
+
+        if (data.gas > 700 && currentTime - lastGasAlertTime > 60000) {
+          Swal.fire('Alerta de Gás!', `Nível perigoso de gás detectado! Valor: ${data.gas}`, 'error');
+          enviarAlertaEmail('Gás Perigoso', 'Nível de gás acima de 700 detectado.', new Date().toLocaleString());
+          lastGasAlertTime = currentTime;
+        }
+      }
+
+      // Processa os dados RFID
+      if (data.rfid) {
+        // Verifica no backend se o cartão já está cadastrado
+        fetch("http://localhost:3000/verificar-usuario/" + data.rfid)
+          .then(res => res.json())
+          .then(response => {
+            if (response.user) {
+              // Se já estiver cadastrado, registra acesso direto
+              cartoesCadastrados[data.rfid] = response.user;
+              registrarAcesso(data.rfid);
+            } else {
+              // Se não, abre o modal para cadastro
+              mostrarModalCadastro(data.rfid);
+            }
+          })
+          .catch(err => console.error("Erro ao verificar usuário:", err));
+      }
+    };
+
+    function registrarAcesso(uid) {
+      const tipo = estadoCartoes[uid] ? "Saída" : "Entrada";
+      estadoCartoes[uid] = !estadoCartoes[uid];
+      contadorFuncionarios += tipo === "Entrada" ? 1 : -1;
+      document.getElementById("contadorFuncionarios").innerText = contadorFuncionarios;
+
+      const tbody = document.getElementById('rfidTable').getElementsByTagName('tbody')[0];
+      const row = tbody.insertRow(0);
+      row.insertCell(0).innerText = new Date().toLocaleString();
+      row.insertCell(1).innerText = uid;
+      row.insertCell(2).innerText = tipo;
+
+      fetch("http://localhost:3000/registrar-acesso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: uid, tipo: tipo })
+      })
+      .then(res => res.json())
+      .then(data => console.log("Acesso registrado:", data))
+      .catch(err => console.error("Erro ao registrar acesso:", err));
+    }
+
+    function enviarSimulacao(comando) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(comando);
+        console.log("Enviado:", comando);
+      }
+    }
+
+    function enviarAlertaEmail(titulo, mensagem, timestamp) {
+      emailjs.send("service_rec927w", "template_6506a08", {
+        name: "Monitoramento",
+        time: timestamp,
+        message: mensagem,
+        to_email: "zduardopereira@gmail.com"
+      }).then(() => {
+        Swal.fire('Email Enviado!', 'O alerta foi enviado com sucesso.', 'success');
+      }).catch(() => {
+        Swal.fire('Erro!', 'Falha ao enviar o alerta por e-mail.', 'error');
+      });
+    }
+
+    function testarEmail() {
+      enviarAlertaEmail("Teste de E-mail", "Este é um teste do sistema de alerta por e-mail.", new Date().toLocaleString());
+    }
+
+    function mostrarModalCadastro(uid) {
+      document.getElementById("modalCadastro").style.display = "flex";
+      document.getElementById("modalCadastro").setAttribute("data-uid", uid);
+    }
+
+    function cadastrarCartao() {
+      const nome = document.getElementById("nome").value;
+      const email = document.getElementById("email").value;
+      const uid = document.getElementById("modalCadastro").getAttribute("data-uid");
+
+      if (!nome || !email) {
+        alert("Preencha todos os campos!");
+        return;
+      }
+
+      fetch("http://localhost:3000/cadastrar-cartao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, nome, email })
+      })
+      .then(res => res.json())
+      .then(data => {
+        cartoesCadastrados[uid] = data.user || { nome, email };
+        document.getElementById("modalCadastro").style.display = "none";
+        document.getElementById("nome").value = "";
+        document.getElementById("email").value = "";
+        registrarAcesso(uid); // Registra o acesso imediatamente após o cadastro
+      })
+      .catch(err => {
+        console.error("Erro ao cadastrar cartão:", err);
+      });
+    }
+  </script>
+</body>
+</html>
