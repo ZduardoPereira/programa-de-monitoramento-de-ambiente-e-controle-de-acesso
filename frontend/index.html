@@ -132,7 +132,7 @@
     const cartoesCadastrados = {};
 
     // Conexão WebSocket (ajuste o IP conforme sua rede)
-    const ws = new WebSocket("ws://192.168.194.143:81/");
+    const ws = new WebSocket("ws://seuIp:81/");
     ws.onopen = () => console.log("WebSocket conectado!");
 
     ws.onmessage = function(event) {
