@@ -18,8 +18,8 @@ DHT dht(DHTPIN, DHTTYPE);
 MFRC522 mfrc522(SS_PIN, RST_PIN);
 
 // Credenciais do Wi-Fi
-const char* ssid = "moto g41_4251";
-const char* password = "12345678";
+const char* ssid = "Nome da rede";
+const char* password = "Senha da rede";
 
 // Inicialização dos servidores WebSocket e HTTP
 WebSocketsServer webSocket = WebSocketsServer(81);
