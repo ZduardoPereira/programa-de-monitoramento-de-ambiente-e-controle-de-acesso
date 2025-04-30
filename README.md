@@ -41,7 +41,7 @@ Este projeto consiste em uma **API de monitoramento de ambiente** (DHT11 para te
 
 1. Clone o repositório  
    ```bash
-   git clone https://github.com/seu-usuario/seu-repo.git
+   git clone (https://github.com/ZduardoPereira/programa-de-monitoramento-de-ambiente-e-controle-de-acesso.git)
    cd seu-repo
    ```  
 2. Abra no Arduino IDE ou PlatformIO  
