@@ -1,10 +1,6 @@
 
 # 🌡️🛂 ESP32 Controle de Acesso e Monitoramento de Temperatura
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)  
-[![GitHub issues](https://img.shields.io/github/issues/seu-usuario/seu-repo)](https://github.com/seu-usuario/seu-repo/issues)  
-[![GitHub stars](https://img.shields.io/github/stars/seu-usuario/seu-repo)](https://github.com/seu-usuario/seu-repo/stargazers)
-
 Este projeto consiste em uma **API de monitoramento de ambiente** (DHT11 para temperatura e umidade, MQ-9 para gás) e um **sistema de controle de acesso RFID**, ambos rodando em um ESP32.  
 - 🔥 Monitoramento em tempo real via WebSocket  
 - 🚨 Alertas configuráveis (e-mail/SMS)  
@@ -99,6 +95,3 @@ No `index.html`, modifique a URL do WebSocket:
 const ws = new WebSocket("ws://<IP_DO_ESP32>:81/");
 ```
 
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para detalhes.
-EOF
